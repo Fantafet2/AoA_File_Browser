@@ -319,9 +319,8 @@ def create_frane():
     fuzzy_search_keyword.grid(row=1, column=1, sticky="ew", pady=9)
 
 
-    #get_drive_to_search = get_os_name()
-    #drive_to_search = get_drive_to_search[0]+'/'
-    drive_to_search = "C:/Users/franc"
+    get_drive_to_search = get_os_name()
+    drive_to_search = get_drive_to_search[0]+'/'
     button = customtkinter.CTkButton(master = frame, text = "Search", command=lambda: search_for_file_in_drive(search_file_type.get(),drive_to_search,fuzzy_search_keyword.get()))
     button.grid(row=1, column=2, sticky="ew", pady=9)
 
@@ -331,10 +330,6 @@ def create_frane():
 
     button = customtkinter.CTkButton(master =frame, text = "Open Drive", command=open_file)
     button.grid(row=2, column=0, sticky="ew", pady=9)
-
-
-    #button = customtkinter.CTkButton(master =frame, text = "all files", command=open_all_files)
-    #button.pack(pady = 20, padx = 60,)
 
     root.mainloop()
 
