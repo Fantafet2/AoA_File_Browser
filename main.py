@@ -1,5 +1,10 @@
 '''
-    last modified - i think that it is tryin to find a ghost file that doesn't exist
+   to be done: 
+    - add error handling for invalid file paths
+    - sort files by different attributes(date modified, size)
+    - get the drive based on the operating system
+    - find a faster method to get all the files from the drive
+           - add a loading screen to buffer the waiting time
 
     test directory ="C:/Users/franc/Documents/UTECH/2024 SEM 1/PHYSICS SEM 1 2024/physics/physics/labs"
 '''
@@ -15,6 +20,7 @@ import fnmatch
 import mimetypes
 import uuid
 from fuzzywuzzy import fuzz
+import threading
 
 
 def get_mime_type(path,file_name):
@@ -73,10 +79,6 @@ def check_dir_or_file(layout_frame,path,num_buttons,file_name):
 
         print("This is a directory")
 
-        for widget in layout_frame.winfo_children():
-            widget.destroy()
-
-
         dir_list = os.listdir(file_path)
         num_buttons = len(dir_list)
 
@@ -90,12 +92,17 @@ def check_dir_or_file(layout_frame,path,num_buttons,file_name):
         print("File or directory not found")
         return False 
 
-def create_layout_frame():
-    global layout_frame
-    layout_frame = customtkinter.CTkScrollableFrame(master = root)
+def clear_layout_frame():
+    for widget in layout_frame.winfo_children():
+            widget.destroy()
 
-    layout_frame.pack(fill= "both", expand= "True")
-    
+def create_layout_frame():
+
+    global layout_frame
+
+    layout_frame = customtkinter.CTkScrollableFrame(master=root)
+    layout_frame.pack(fill="both", expand=True)
+
 def show_files(path,num_buttons,dir_list):
     print("===================================")
     layout_frame.pack(side="top", anchor="center",padx=0,pady=0)
@@ -119,7 +126,8 @@ def show_files(path,num_buttons,dir_list):
     lable_fileType.grid(row=0, column=3, sticky="ew", pady=9)
 
     for i in range(num_buttons):
-        button = customtkinter.CTkButton(master=layout_frame, text=dir_list[i], command=lambda i=i, dir_list=dir_list: check_dir_or_file(layout_frame,path,num_buttons, dir_list[i]))
+        file_name = os.path.basename(dir_list[i])
+        button = customtkinter.CTkButton(master=layout_frame, text=file_name, command=lambda i=i, dir_list=dir_list: check_dir_or_file(layout_frame,path,num_buttons, dir_list[i]))
         button.grid(row=i+1, column=0, sticky="ew")
         button.grid(row=i+1, column=0, sticky="ew", pady=9)
 
@@ -157,7 +165,7 @@ def open_all_files():
     num_of_files = len(dir_list)
     print(num_of_files)
 
-    create_layout_frame()
+    clear_layout_frame()
     show_files(path,num_of_files,dir_list)
 
 def open_test_file(file_path):
@@ -202,9 +210,9 @@ contains = []
 id_ = uuid.uuid4()
 
 def check_layout_frame_exist(drive,num_of_files,dir_list):
-    if layout_frame.winfo_exists():
-        for widget in layout_frame.winfo_children():
-            widget.destroy()
+
+    clear_layout_frame()
+    
     print("this is drive: ",drive)
     print("this is num of: ",num_of_files)
     print("this is dir list: ",dir_list)
@@ -213,26 +221,19 @@ def check_layout_frame_exist(drive,num_of_files,dir_list):
 
 def search_for_file_in_drive(file_type,drive,substring):
 
-    print("this is the drive to search: ", drive)
-
-    path = ""
     dir_list = []
-    create_layout_frame()
-    
-    for root, dirs, files in os.walk(drive):
-        for name in files:
-            if os.path.isfile(os.path.join(root, name)):
-                if name.endswith(tuple(ft for ft in file_type)) or file_type == "":
-                    if substring.lower() in name.lower():
-                        path = os.path.join(root,name)
-                        dir_list.append(path)
-                        print(path)
-                        num_of_files = len(dir_list)
 
-                        check_layout_frame_exist(drive,num_of_files,dir_list)
+    for name in store_all_files:
+        file_name = os.path.basename(name)
+        if name.endswith(tuple(ft for ft in file_type)) or file_type == "":
+            if substring.lower() in file_name.lower():
+                print("this is the path: ",name)
 
-                        break
-    
+                dir_list.append(name)
+    num_of_files = len(dir_list)
+
+    check_layout_frame_exist(drive,num_of_files,dir_list)
+
     print("fininshed searchingn")
     
 
@@ -264,7 +265,7 @@ def open_file():
             
             num_of_files = len(dir_list)
             
-            create_layout_frame()
+            clear_layout_frame()
             show_files(drive_path,num_of_files,dir_list)
     
 
@@ -319,8 +320,9 @@ def create_frane():
     fuzzy_search_keyword.grid(row=1, column=1, sticky="ew", pady=9)
 
 
-    get_drive_to_search = get_os_name()
-    drive_to_search = get_drive_to_search[0]+'/'
+    '''get_drive_to_search = get_os_name()
+    drive_to_search = get_drive_to_search[0]+'/'''
+    drive_to_search = "C:/Users/franc/Documents/UTECH/2024 SEM 1/PHYSICS SEM 1 2024/physics/physics/labs"
     button = customtkinter.CTkButton(master = frame, text = "Search", command=lambda: search_for_file_in_drive(search_file_type.get(),drive_to_search,fuzzy_search_keyword.get()))
     button.grid(row=1, column=2, sticky="ew", pady=9)
 
@@ -331,11 +333,38 @@ def create_frane():
     button = customtkinter.CTkButton(master =frame, text = "Open Drive", command=open_file)
     button.grid(row=2, column=0, sticky="ew", pady=9)
 
+    create_layout_frame()
+
+
+    #button = customtkinter.CTkButton(master =frame, text = "all files", command=open_all_files)
+    #button.pack(pady = 20, padx = 60,)
+
     root.mainloop()
 
+def get_all_files_from_file():
+
+    get_drive_to_search = get_os_name()
+    drive = get_drive_to_search[0]+'/'
+    
+    global store_all_files
+    store_all_files = []
+
+    file_type = ""
+    for root, dirs, files in os.walk(drive):
+        for name in files:
+            if os.path.isfile(os.path.join(root, name)):
+                if name.endswith(tuple(ft for ft in file_type)) or file_type == "":
+                    #if substring.lower() in name.lower():
+                        path = os.path.join(root,name)
+                        store_all_files.append(path)
+                        
+
+    print("all files have been stored")
+    print("total number of files: ", len(store_all_files))
 
 
 def main():
+    get_all_files_from_file()
     create_frane()
     
    
