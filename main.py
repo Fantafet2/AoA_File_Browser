@@ -11,10 +11,39 @@ import time
 import platform
 import win32api
 import re
-import fnmatch
+import time
 import mimetypes
 import uuid
 from fuzzywuzzy import fuzz
+from tqdm import tqdm
+import threading
+import gpt_text_summary
+import gpt_image_summary
+import asyncio
+
+
+def type_to_summarize(path,file_type, filename):
+    text_types = {
+        "text/plain", "text/html", "text/css", "text/csv", "text/xml",
+        "application/json", "application/javascript", "application/rtf",
+        "text/markdown"
+    }
+
+    image_types = {
+        "image/jpeg", "image/png", "image/gif", "image/bmp",
+        "image/tiff", "image/webp", "image/svg+xml", "image/x-icon"
+    }
+
+
+    # Determine the type
+    if file_type in text_types:
+        summary = gpt_text_summary.ai_text_response_type(path,filename)
+    elif file_type in image_types:
+        summary = gpt_image_summary.get_visual_features(path,filename)
+    else:
+        summary = "unknown"
+
+    return summary
 
 
 def get_mime_type(path,file_name):
@@ -90,6 +119,11 @@ def check_dir_or_file(layout_frame,path,num_buttons,file_name):
         print("File or directory not found")
         return False 
 
+
+def clear_layout_frame():
+    for widget in layout_frame.winfo_children():
+            widget.destroy()
+            
 def create_layout_frame():
     global layout_frame
     layout_frame = customtkinter.CTkScrollableFrame(master = root)
@@ -104,7 +138,7 @@ def show_files(path,num_buttons,dir_list):
     layout_frame.grid_columnconfigure(1, weight=1, minsize=100, pad=10)
     layout_frame.grid_columnconfigure(2, weight=1, minsize=100, pad=10)
     layout_frame.grid_columnconfigure(3, weight=1, minsize=100, pad=10)
-    layout_frame.grid_columnconfigure(3, weight=1, minsize=100, pad=10)
+    layout_frame.grid_columnconfigure(4, weight=1, minsize=100, pad=10)
 
     lable_filename = customtkinter.CTkLabel(master = layout_frame, text = "File Name")
     lable_filename.grid(row=0, column=0, sticky="ew", pady=9)
@@ -118,8 +152,12 @@ def show_files(path,num_buttons,dir_list):
     lable_fileType = customtkinter.CTkLabel(master = layout_frame, text = "File Type")
     lable_fileType.grid(row=0, column=3, sticky="ew", pady=9)
 
+    label_summary = customtkinter.CTkLabel(master = layout_frame, text = "File Summary")
+    label_summary.grid(row=0, column=4, sticky="ew", pady=9)
+
+
     for i in range(num_buttons):
-        button = customtkinter.CTkButton(master=layout_frame, text=dir_list[i], command=lambda i=i, dir_list=dir_list: check_dir_or_file(layout_frame,path,num_buttons, dir_list[i]))
+        button = customtkinter.CTkButton(master=layout_frame,width=40, text= os.path.basename(dir_list[i]), command=lambda i=i, dir_list=dir_list: check_dir_or_file(layout_frame,path,num_buttons, dir_list[i]))
         button.grid(row=i+1, column=0, sticky="ew")
         button.grid(row=i+1, column=0, sticky="ew", pady=9)
 
@@ -136,9 +174,17 @@ def show_files(path,num_buttons,dir_list):
                     file_last_modified_label.grid(row=i+1, column=2, sticky="ew")
                     file_last_modified_label.grid(row=i+1, column=2, sticky="ew", pady=9)
 
-                    file_type_label = customtkinter.CTkLabel(master=layout_frame, text=get_mime_type(path,dir_list[i]))
+                    file_type = get_mime_type(path,dir_list[i])
+                    file_type_label = customtkinter.CTkLabel(master=layout_frame, text=file_type)
                     file_type_label.grid(row=i+1, column=3, sticky="ew")
                     file_type_label.grid(row=i+1, column=3, sticky="ew", pady=9)
+
+                    file_summary_label = customtkinter.CTkLabel(master=layout_frame, text= type_to_summarize(path,file_type,dir_list[i]))
+                    file_summary_label.grid(row=i+1, column=4, sticky="ew")
+                    file_summary_label.grid(row=i+1, column=4, sticky="ew", pady=9)
+    
+                   
+                        
                 except FileNotFoundError:
                     print(f"File '{file_path}' not found.")
                 except PermissionError:
@@ -157,7 +203,7 @@ def open_all_files():
     num_of_files = len(dir_list)
     print(num_of_files)
 
-    create_layout_frame()
+    clear_layout_frame()
     show_files(path,num_of_files,dir_list)
 
 def open_test_file(file_path):
@@ -202,9 +248,9 @@ contains = []
 id_ = uuid.uuid4()
 
 def check_layout_frame_exist(drive,num_of_files,dir_list):
-    if layout_frame.winfo_exists():
-        for widget in layout_frame.winfo_children():
-            widget.destroy()
+
+    clear_layout_frame()
+
     print("this is drive: ",drive)
     print("this is num of: ",num_of_files)
     print("this is dir list: ",dir_list)
@@ -212,27 +258,20 @@ def check_layout_frame_exist(drive,num_of_files,dir_list):
     show_files(drive,num_of_files,dir_list)
 
 def search_for_file_in_drive(file_type,drive,substring):
-
-    print("this is the drive to search: ", drive)
-
-    path = ""
+    
     dir_list = []
-    create_layout_frame()
-    
-    for root, dirs, files in os.walk(drive):
-        for name in files:
-            if os.path.isfile(os.path.join(root, name)):
-                if name.endswith(tuple(ft for ft in file_type)) or file_type == "":
-                    if substring.lower() in name.lower():
-                        path = os.path.join(root,name)
-                        dir_list.append(path)
-                        print(path)
-                        num_of_files = len(dir_list)
 
-                        check_layout_frame_exist(drive,num_of_files,dir_list)
+    for name in store_all_files:
+        file_name = os.path.basename(name)
+        if name.endswith(tuple(ft for ft in file_type)) or file_type == "":
+            if substring.lower() in file_name.lower():
+                print("this is the path: ",name)
 
-                        break
-    
+                dir_list.append(name)
+    num_of_files = len(dir_list)
+
+    check_layout_frame_exist(drive,num_of_files,dir_list)
+
     print("fininshed searchingn")
     
 
@@ -264,7 +303,7 @@ def open_file():
             
             num_of_files = len(dir_list)
             
-            create_layout_frame()
+            clear_layout_frame()
             show_files(drive_path,num_of_files,dir_list)
     
 
@@ -312,11 +351,11 @@ def create_frane():
     #Entry feilds to search for a file 
     #this specifies the file type but is not neccesarry
     search_file_type = customtkinter.CTkEntry(master = frame, width=50, placeholder_text="Search files")
-    search_file_type.grid(row=1, column=0, sticky="ew", pady=30)
+    search_file_type.grid(row=1, column=1, sticky="ew", pady=30)
 
     #Entry feild for the file name
     fuzzy_search_keyword = customtkinter.CTkEntry(master = frame, width= 50, placeholder_text="Enter fuzzy search")
-    fuzzy_search_keyword.grid(row=1, column=1, sticky="ew", pady=9)
+    fuzzy_search_keyword.grid(row=1, column=0, sticky="ew", pady=9)
 
 
     get_drive_to_search = get_os_name()
@@ -331,13 +370,43 @@ def create_frane():
     button = customtkinter.CTkButton(master =frame, text = "Open Drive", command=open_file)
     button.grid(row=2, column=0, sticky="ew", pady=9)
 
+    create_layout_frame()
+
     root.mainloop()
 
 
+def get_all_files_from_file():
+
+    get_drive_to_search = get_os_name()
+    drive = get_drive_to_search[0]+'/'
+    
+    global store_all_files
+    store_all_files = []
+
+    file_type = ""
+   
+
+    for root, dirs, files in tqdm(os.walk(drive), desc="Searching for files..."):
+        for file in files:
+                file_path = os.path.join(root, file)
+                store_all_files.append(file_path)
+                        
+
+    print("all files have been stored")
+    print("total number of files: ", len(store_all_files))
+
 
 def main():
-    create_frane()
+
+    thread1 = threading.Thread(target=get_all_files_from_file)
+    thread2 = threading.Thread(target=create_frane)
     
+    thread1.start()
+    thread2.start()
+
+    # Wait for both threads to complete
+    thread1.join()
+    thread2.join()
    
 if __name__ == "__main__":
     main()
