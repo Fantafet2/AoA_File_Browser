@@ -13,37 +13,81 @@ from fuzzywuzzy import fuzz
 import threading
 
 
-def get_mime_type(path,file_name):
-  file_path = os.path.join(path,file_name)
-  
-  #mime = magic.from_file(file_path, mime=True)
-  mime_type, _ = mimetypes.guess_type(file_path)
 
-  return mime_type
-
-
-def get_size_of_file(path,file_name):
-
-    file_path = os.path.join(path,file_name)
-
-    if os.path.exists(file_path):
-        stat = os.stat(file_path)
-        return stat.st_size
+def get_mime_type(path, file_name):
+    try:
+        file_path = os.path.join(path, file_name)
+        
+        # Ensure the file exists before attempting to guess the mime type
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"File '{file_path}' not found.")
+        
+        #mime = magic.from_file(file_path, mime=True)  # Uncomment if you plan to use magic library
+        mime_type, _ = mimetypes.guess_type(file_path)
+        
+        if mime_type is None:
+            raise ValueError("Could not determine mime type.")
+        
+        return mime_type
     
-    else:
-        print(f"File '{file_path}' not found.")
+    except FileNotFoundError as fnf_error:
+        print(fnf_error)
+        return None
+    except ValueError as value_error:
+        print(value_error)
+        return None
+    except Exception as e:
+        print(f"An error occurred: {e}")
         return None
 
-def get_last_modified_of_file(path,file_name):
 
-    file_path = os.path.join(path,file_name)
-    # Get last modification
-    mod_time = os.path.getmtime(file_path)
+def get_size_of_file(path, file_name):
+    try:
+        file_path = os.path.join(path, file_name)
 
-    # Convert time to readable format
-    mod_time_readable = time.ctime(mod_time)
+        if os.path.exists(file_path):
+            stat = os.stat(file_path)
+            return stat.st_size
+        
+        else:
+            raise FileNotFoundError(f"File '{file_path}' not found.")
+    
+    except FileNotFoundError as fnf_error:
+        print(fnf_error)
+        return None
+    except OSError as os_error:
+        print(f"OS error: {os_error}")
+        return None
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
 
-    return mod_time_readable
+
+def get_last_modified_of_file(path, file_name):
+    try:
+        file_path = os.path.join(path, file_name)
+        
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"File '{file_path}' not found.")
+        
+        # Get last modification time
+        mod_time = os.path.getmtime(file_path)
+
+        # Convert time to readable format
+        mod_time_readable = time.ctime(mod_time)
+
+        return mod_time_readable
+    
+    except FileNotFoundError as fnf_error:
+        print(fnf_error)
+        return None
+    except OSError as os_error:
+        print(f"OS error: {os_error}")
+        return None
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+
 
 
 def button_click(path,file_name):
