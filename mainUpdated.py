@@ -90,41 +90,57 @@ def get_last_modified_of_file(path, file_name):
 
 
 
-def button_click(path,file_name):
-    file_path = os.path.join(path,file_name)
+def button_click(path, file_name):
+    try:
+        file_path = os.path.join(path, file_name)
+        
+        print("This is working... ", file_path)
+
+        # Ensure file exists before attempting to open
+        if os.path.exists(file_path):
+            open_test_file(file_path)  # Assuming open_test_file is defined elsewhere
+        else:
+            raise FileNotFoundError(f"File '{file_path}' not found.")
     
-    print("this is working... ", file_path)
+    except FileNotFoundError as fnf_error:
+        print(fnf_error)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+
+def check_dir_or_file(layout_frame, path, num_buttons, file_name):
+    try:
+        print("This is the file name:", file_name)
+        print("This is the path:", path)
+
+        file_path = os.path.join(path, file_name)
+
+        print("This is the file path:", file_path)
+
+        if os.path.isdir(file_path):
+            print("This is a directory")
+            dir_list = os.listdir(file_path)
+            num_buttons = len(dir_list)
+            show_files(file_path, num_buttons, dir_list)  # Assuming show_files is defined elsewhere
+        
+        elif os.path.isfile(file_path):
+            print("This is a file")
+            button_click(path, file_name)  # This calls button_click() for files
+        
+        else:
+            print(f"Neither a file nor a directory at {file_path}.")
+            return False
     
-    if os.path.exists(file_path):
-        open_test_file(file_path)
+    except FileNotFoundError as fnf_error:
+        print(fnf_error)
+        return False
+    except PermissionError as perm_error:
+        print(f"Permission error: {perm_error}")
+        return False
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return False
 
-def check_dir_or_file(layout_frame,path,num_buttons,file_name):
-    print("this is the file name ",file_name)
-    print(" ")
-    print("this is the path ",path)
-    print(" ")
-
-    file_path = os.path.join(path,file_name)
-
-    print("this is the file path", file_path)
-
-
-    if os.path.isdir(file_path):
-
-        print("This is a directory")
-
-        dir_list = os.listdir(file_path)
-        num_buttons = len(dir_list)
-
-        show_files(file_path,num_buttons,dir_list)
-
-    elif os.path.isfile(file_path):
-
-        print("This is a file")
-        button_click(path,file_path)
-    else:
-        print("File or directory not found")
-        return False 
 
 def clear_layout_frame():
     for widget in layout_frame.winfo_children():
